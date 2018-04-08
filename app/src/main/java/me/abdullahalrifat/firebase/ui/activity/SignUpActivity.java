@@ -4,9 +4,13 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
 import me.abdullahalrifat.firebase.R;
+import me.abdullahalrifat.firebase.model.Item;
+import me.abdullahalrifat.firebase.model.User;
+
 import android.content.Intent;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -17,9 +21,16 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
 public class SignUpActivity extends AppCompatActivity {
 
-    private EditText inputEmail, inputPassword;
+    private EditText inputEmail, inputPassword,inputName,inputPhone;
     private Button btnSignIn, btnSignUp, btnResetPassword;
     private ProgressBar progressBar;
     private FirebaseAuth auth;
@@ -34,6 +45,9 @@ public class SignUpActivity extends AppCompatActivity {
         btnSignUp = (Button) findViewById(R.id.sign_up_button);
         inputEmail = (EditText) findViewById(R.id.email);
         inputPassword = (EditText) findViewById(R.id.password);
+        inputName = (EditText) findViewById(R.id.name);
+        inputPhone = (EditText) findViewById(R.id.phone);
+
         progressBar = (ProgressBar) findViewById(R.id.progressBar);
         btnSignIn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -45,9 +59,10 @@ public class SignUpActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                String email = inputEmail.getText().toString().trim();
-                String password = inputPassword.getText().toString().trim();
-
+                final String email = inputEmail.getText().toString().trim();
+                final String password = inputPassword.getText().toString().trim();
+                final String Name=inputName.getText().toString();
+                final String Phone=inputPhone.getText().toString();
                 if (TextUtils.isEmpty(email)) {
                     Toast.makeText(getApplicationContext(), "Enter email address!", Toast.LENGTH_SHORT).show();
                     return;
@@ -64,7 +79,9 @@ public class SignUpActivity extends AppCompatActivity {
                 }
 
                 progressBar.setVisibility(View.VISIBLE);
-                //create user
+
+                //create User
+
                 auth.createUserWithEmailAndPassword(email, password)
                         .addOnCompleteListener(SignUpActivity.this, new OnCompleteListener<AuthResult>() {
                             @Override
@@ -78,14 +95,42 @@ public class SignUpActivity extends AppCompatActivity {
                                     Toast.makeText(SignUpActivity.this, "Authentication failed." + task.getException(),
                                             Toast.LENGTH_SHORT).show();
                                 } else {
-                                    startActivity(new Intent(SignUpActivity.this, MainActivity.class));
-                                    finish();
+                                    //get firebase user
+                                    FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                                    connectDatabse(user,email,password,Name,Phone);
                                 }
                             }
                         });
 
-            }
-        });
+
+
+
+
+
+
+                        }
+                    });
+    }
+    private void connectDatabse(FirebaseUser firebaseuser,String email,String password,String Name,String Phone)
+    {
+        DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference("users");
+
+            // Creating new User node, which returns the unique key value
+            // new User node would be /users/$userid/
+            //getting the userid from authentication table
+            String userId = firebaseuser.getUid();
+
+            // creating User object
+            User user = new User(Name,email,password,Phone);
+
+            // pushing User to 'users' node using the userId
+            mDatabase.child(userId).setValue(user, new DatabaseReference.CompletionListener() {
+                public void onComplete(DatabaseError error, DatabaseReference ref) {
+                    Toast.makeText(getApplicationContext(), "Registration Successfull", Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                }
+            });
+
     }
     @Override
     protected void onResume() {
